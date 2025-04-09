@@ -1,0 +1,133 @@
+-- LocalScript inside StarterPlayerScripts or ScreenGui
+
+local player = game.Players.LocalPlayer
+local character = player.Character or player.CharacterAdded:Wait()
+local humanoid = character:WaitForChild("Humanoid")
+
+local defaultWS = 16
+local defaultJP = 50
+
+local isWSOn = false
+local isJPOn = false
+local startTime = tick()
+
+-- GUI Setup
+local gui = Instance.new("ScreenGui", player:WaitForChild("PlayerGui"))
+gui.Name = "XyroxWSJP"
+
+-- Main Frame
+local frame = Instance.new("Frame", gui)
+frame.Position = UDim2.new(0.5, -150, 0.5, -100)
+frame.Size = UDim2.new(0, 300, 0, 180)
+frame.BackgroundColor3 = Color3.fromRGB(255, 240, 250)
+frame.BorderSizePixel = 0
+frame.Active = true
+frame.Draggable = true
+
+-- Title
+local title = Instance.new("TextLabel", frame)
+title.Size = UDim2.new(1, 0, 0, 30)
+title.BackgroundColor3 = Color3.fromRGB(255, 200, 220)
+title.Text = "🎀 Xyrox"
+title.TextColor3 = Color3.fromRGB(255, 105, 180)
+title.Font = Enum.Font.GothamBold
+title.TextSize = 22
+title.BorderSizePixel = 0
+
+-- Timer
+local timer = Instance.new("TextLabel", frame)
+timer.Position = UDim2.new(0, 10, 0, 30)
+timer.Size = UDim2.new(0, 280, 0, 20)
+timer.Text = "0s Ws/Jp"
+timer.TextColor3 = Color3.fromRGB(255, 105, 180)
+timer.BackgroundTransparency = 1
+timer.Font = Enum.Font.Gotham
+timer.TextSize = 16
+
+-- WalkSpeed Input
+local wsInput = Instance.new("TextBox", frame)
+wsInput.Position = UDim2.new(0, 10, 0, 60)
+wsInput.Size = UDim2.new(0, 130, 0, 25)
+wsInput.PlaceholderText = "WalkSpeed"
+wsInput.Text = tostring(defaultWS)
+wsInput.BackgroundColor3 = Color3.fromRGB(255, 230, 240)
+wsInput.TextColor3 = Color3.new(0.2, 0.2, 0.2)
+wsInput.Font = Enum.Font.Gotham
+wsInput.TextSize = 16
+
+-- JumpPower Input
+local jpInput = Instance.new("TextBox", frame)
+jpInput.Position = UDim2.new(0, 160, 0, 60)
+jpInput.Size = UDim2.new(0, 130, 0, 25)
+jpInput.PlaceholderText = "JumpPower"
+jpInput.Text = tostring(defaultJP)
+jpInput.BackgroundColor3 = Color3.fromRGB(255, 230, 240)
+jpInput.TextColor3 = Color3.new(0.2, 0.2, 0.2)
+jpInput.Font = Enum.Font.Gotham
+jpInput.TextSize = 16
+
+-- Toggle GUI Button
+local toggleGUI = Instance.new("TextButton", gui)
+toggleGUI.Position = UDim2.new(0.5, -60, 1, -90)
+toggleGUI.Size = UDim2.new(0, 120, 0, 30)
+toggleGUI.Text = "Toggle GUI"
+toggleGUI.BackgroundColor3 = Color3.fromRGB(255, 200, 220)
+toggleGUI.TextColor3 = Color3.fromRGB(255, 105, 180)
+toggleGUI.Font = Enum.Font.GothamBold
+toggleGUI.TextSize = 18
+toggleGUI.Active = true
+toggleGUI.Draggable = true
+
+-- WalkSpeed Toggle
+local wsToggle = Instance.new("TextButton", gui)
+wsToggle.Position = UDim2.new(0.5, -150, 1, -50)
+wsToggle.Size = UDim2.new(0, 100, 0, 30)
+wsToggle.Text = "WS: OFF"
+wsToggle.BackgroundColor3 = Color3.fromRGB(255, 230, 240)
+wsToggle.TextColor3 = Color3.fromRGB(255, 105, 180)
+wsToggle.Font = Enum.Font.GothamBold
+wsToggle.TextSize = 18
+wsToggle.Active = true
+wsToggle.Draggable = true
+
+-- JumpPower Toggle
+local jpToggle = Instance.new("TextButton", gui)
+jpToggle.Position = UDim2.new(0.5, 50, 1, -50)
+jpToggle.Size = UDim2.new(0, 100, 0, 30)
+jpToggle.Text = "JP: OFF"
+jpToggle.BackgroundColor3 = Color3.fromRGB(255, 230, 240)
+jpToggle.TextColor3 = Color3.fromRGB(255, 105, 180)
+jpToggle.Font = Enum.Font.GothamBold
+jpToggle.TextSize = 18
+jpToggle.Active = true
+jpToggle.Draggable = true
+
+-- Toggle Functions
+wsToggle.MouseButton1Click:Connect(function()
+	isWSOn = not isWSOn
+	wsToggle.Text = "WS: " .. (isWSOn and "ON" or "OFF")
+	humanoid.WalkSpeed = isWSOn and (tonumber(wsInput.Text) or defaultWS) or defaultWS
+	startTime = tick()
+end)
+
+jpToggle.MouseButton1Click:Connect(function()
+	isJPOn = not isJPOn
+	jpToggle.Text = "JP: " .. (isJPOn and "ON" or "OFF")
+	humanoid.JumpPower = isJPOn and (tonumber(jpInput.Text) or defaultJP) or defaultJP
+	startTime = tick()
+end)
+
+toggleGUI.MouseButton1Click:Connect(function()
+	frame.Visible = not frame.Visible
+end)
+
+-- Timer Update
+game:GetService("RunService").RenderStepped:Connect(function()
+	timer.Text = (isWSOn or isJPOn) and (math.floor(tick() - startTime) .. "s Ws/Jp") or "0s Ws/Jp"
+end)
+
+-- Respawn Reset
+player.CharacterAdded:Connect(function(char)
+	character = char
+	humanoid = character:WaitForChild("Humanoid")
+end)
