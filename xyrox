@@ -1,24 +1,24 @@
--- Xyrox GUI Script with Da Strike support, draggable toggles, and anti slow
+-- LocalScript in StarterPlayerScripts
 
 local player = game.Players.LocalPlayer
 local character = player.Character or player.CharacterAdded:Wait()
 local humanoid = character:WaitForChild("Humanoid")
-local hrp = character:WaitForChild("HumanoidRootPart")
 local RunService = game:GetService("RunService")
 
-local defaultWS, defaultJP = 16, 50
-local currentWS, currentJP = defaultWS, defaultJP
-local isWSOn, isJPOn, antiSlowOn = false, false, false
+local defaultWS = 16
+local defaultJP = 50
+local isWSOn = false
+local isJPOn = false
+local currentWS = defaultWS
+local currentJP = defaultJP
 local startTime = tick()
-local isJumping = false
 
--- GUI Setup
 local gui = Instance.new("ScreenGui", game.CoreGui)
-gui.Name = "XyroxGUI"
+gui.Name = "XyroxWSJP"
 
 local frame = Instance.new("Frame", gui)
 frame.Position = UDim2.new(0.5, -150, 0.5, -100)
-frame.Size = UDim2.new(0, 300, 0, 210)
+frame.Size = UDim2.new(0, 300, 0, 180)
 frame.BackgroundColor3 = Color3.fromRGB(255, 240, 250)
 frame.BorderSizePixel = 0
 frame.Active = true
@@ -36,11 +36,11 @@ title.BorderSizePixel = 0
 local timer = Instance.new("TextLabel", frame)
 timer.Position = UDim2.new(0, 10, 0, 30)
 timer.Size = UDim2.new(0, 280, 0, 20)
-timer.Text = "0s Ws/Jp"
 timer.TextColor3 = Color3.fromRGB(255, 105, 180)
 timer.BackgroundTransparency = 1
 timer.Font = Enum.Font.Gotham
 timer.TextSize = 16
+timer.Text = "0s Ws/Jp"
 
 local wsInput = Instance.new("TextBox", frame)
 wsInput.Position = UDim2.new(0, 10, 0, 60)
@@ -61,15 +61,6 @@ jpInput.BackgroundColor3 = Color3.fromRGB(255, 230, 240)
 jpInput.TextColor3 = Color3.new(0.2, 0.2, 0.2)
 jpInput.Font = Enum.Font.Gotham
 jpInput.TextSize = 16
-
-local antiSlowBtn = Instance.new("TextButton", frame)
-antiSlowBtn.Position = UDim2.new(0.5, -70, 0, 95)
-antiSlowBtn.Size = UDim2.new(0, 140, 0, 25)
-antiSlowBtn.Text = "Anti Slow: OFF"
-antiSlowBtn.BackgroundColor3 = Color3.fromRGB(255, 230, 240)
-antiSlowBtn.TextColor3 = Color3.fromRGB(255, 105, 180)
-antiSlowBtn.Font = Enum.Font.GothamBold
-antiSlowBtn.TextSize = 16
 
 local toggleGUI = Instance.new("TextButton", gui)
 toggleGUI.Position = UDim2.new(0.5, -60, 1, -90)
@@ -104,13 +95,13 @@ jpToggle.TextSize = 18
 jpToggle.Active = true
 jpToggle.Draggable = true
 
--- Listeners
+-- Refresh character on respawn
 player.CharacterAdded:Connect(function(char)
 	character = char
 	humanoid = character:WaitForChild("Humanoid")
-	hrp = character:WaitForChild("HumanoidRootPart")
 end)
 
+-- WS/JP Toggle logic
 wsToggle.MouseButton1Click:Connect(function()
 	isWSOn = not isWSOn
 	wsToggle.Text = "WS: " .. (isWSOn and "ON" or "OFF")
@@ -129,33 +120,11 @@ toggleGUI.MouseButton1Click:Connect(function()
 	frame.Visible = not frame.Visible
 end)
 
-antiSlowBtn.MouseButton1Click:Connect(function()
-	antiSlowOn = not antiSlowOn
-	antiSlowBtn.Text = "Anti Slow: " .. (antiSlowOn and "ON" or "OFF")
-end)
-
-humanoid.StateChanged:Connect(function(_, new)
-	if new == Enum.HumanoidStateType.Jumping then
-		isJumping = true
-	end
-end)
-
+-- CONSTANTLY APPLY to bypass resets
 RunService.RenderStepped:Connect(function()
 	if humanoid and humanoid.Parent then
-		if isWSOn then
-			local moveDir = humanoid.MoveDirection
-			if moveDir.Magnitude > 0 then
-				hrp.Velocity = moveDir.Unit * currentWS + Vector3.new(0, hrp.Velocity.Y, 0)
-			end
-		end
-		if isJPOn and isJumping then
-			hrp.Velocity = Vector3.new(hrp.Velocity.X, currentJP, hrp.Velocity.Z)
-			isJumping = false
-		end
-		if antiSlowOn then
-			humanoid.PlatformStand = false
-			humanoid.Sit = false
-		end
+		if isWSOn then humanoid.WalkSpeed = currentWS end
+		if isJPOn then humanoid.JumpPower = currentJP end
 	end
 	timer.Text = (isWSOn or isJPOn) and (math.floor(tick() - startTime) .. "s Ws/Jp") or "0s Ws/Jp"
 end)
