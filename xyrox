@@ -1,3 +1,8 @@
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local TeleportService = game:GetService("TeleportService")
+local LocalPlayer = Players.LocalPlayer
+
 local WindUI = loadstring(game:HttpGet("https://github.com/Footagesus/WindUI/releases/latest/download/main.lua"))()
 
 local Window = WindUI:CreateWindow({
@@ -8,10 +13,7 @@ local Window = WindUI:CreateWindow({
     Size = UDim2.fromOffset(420, 360),
     Transparent = true,
     Theme = "Dark",
-    User = {
-        Enabled = true,
-        Anonymous = false
-    },
+    User = {Enabled = true, Anonymous = false},
     SideBarWidth = 180,
     HasOutline = true,
 })
@@ -20,54 +22,71 @@ local UI = Window
 
 local farmTab = UI:Tab({Title = "Farm", Icon = "sprout"})
 local utilityTab = UI:Tab({Title = "Utility", Icon = "settings"})
-local petTab = UI:Tab({Title = "Pet", Icon = "paw-print"})
 local espTab = UI:Tab({Title = "ESP", Icon = "eye"})
 local fpsTab = UI:Tab({Title = "FPS", Icon = "gauge"})
 local shopTab = UI:Tab({Title = "Shop", Icon = "shopping-cart"})
+local settingsTab = UI:Tab({Title = "Settings", Icon = "server"})
 
 local autoClaim = false
 local autoPlant = false
 local autoSell = false
-local selectedGear = "master sprinkler"
-local selectedMutation = "Wet"
+local autoBuyGear = false
 local espEnabled = false
+local selectedMutations = {"All"}
+local espMutationFilter = {"Wet"}
+local selectedGears = {"master sprinkler"}
+local selectedEggs = {"Common Egg"}
+local selectedTwilight = {"Star Caller"}
+local selectedBloodlit = {"Mysterious Crate"}
+local jobId = ""
+
+farmTab:Dropdown({
+    Title = "Claim Filter: Mutations",
+    Values = {"All", "Choc", "Chilled", "Frozen", "Wet", "Plasma", "Disco", "Shocked", "Gold", "Rainbow"},
+    Value = {"All"},
+    Multi = true,
+    AllowNone = false,
+    Callback = function(vals) selectedMutations = vals end
+})
 
 farmTab:Toggle({
     Title = "Auto Claim",
     Value = false,
     Callback = function(v)
         autoClaim = v
-        if v then
-            task.spawn(function()
-                while autoClaim do
-                    for _, plant in pairs(workspace:GetDescendants()) do
-                        if plant.Name == "Harvest" and plant.Parent:FindFirstChild("TouchInterest") then
-                            game:GetService("ReplicatedStorage").GameEvents.HarvestRemote:FireServer(plant.Parent)
+        task.spawn(function()
+            while autoClaim do
+                for _, plant in pairs(workspace:GetDescendants()) do
+                    if plant.Name == "Harvest" and plant.Parent:FindFirstChild("TouchInterest") then
+                        local mut = plant.Parent:FindFirstChild("Mutation")
+                        if table.find(selectedMutations, "All") or (mut and table.find(selectedMutations, mut.Value)) then
+                            ReplicatedStorage.GameEvents.HarvestRemote:FireServer(plant.Parent)
                         end
                     end
-                    task.wait(0.5)
                 end
-            end)
-        end
+                task.wait(0.5)
+            end
+        end)
     end
 })
 
 farmTab:Toggle({
-    Title = "Auto Plant",
+    Title = "Auto Plant (With Seed Held)",
     Value = false,
     Callback = function(v)
         autoPlant = v
-        if v then
-            task.spawn(function()
-                while autoPlant do
-                    local remote = game.ReplicatedStorage:FindFirstChild("PlantSeed")
-                    if remote then
-                        remote:FireServer("Tomato")
-                    end
-                    task.wait(2)
+        task.spawn(function()
+            while autoPlant do
+                local char = LocalPlayer.Character
+                local tool = char and char:FindFirstChildOfClass("Tool")
+                if tool and tool:FindFirstChild("SeedType") then
+                    local seedName = tool.SeedType.Value
+                    local remote = ReplicatedStorage:FindFirstChild("PlantSeed")
+                    if remote then remote:FireServer(seedName) end
                 end
-            end)
-        end
+                task.wait(1.5)
+            end
+        end)
     end
 })
 
@@ -76,50 +95,16 @@ farmTab:Toggle({
     Value = false,
     Callback = function(v)
         autoSell = v
-        if v then
-            task.spawn(function()
-                while autoSell do
-                    local inv = game.Players.LocalPlayer:FindFirstChild("Inventory")
-                    if inv and #inv:GetChildren() >= 30 then
-                        local sell = game.ReplicatedStorage:FindFirstChild("SellItems")
-                        if sell then
-                            sell:FireServer()
-                        end
-                    end
-                    task.wait(3)
+        task.spawn(function()
+            while autoSell do
+                local inv = LocalPlayer:FindFirstChild("Inventory")
+                if inv and #inv:GetChildren() >= 30 then
+                    local sell = ReplicatedStorage:FindFirstChild("SellItems")
+                    if sell then sell:FireServer() end
                 end
-            end)
-        end
-    end
-})
-
-utilityTab:Button({
-    Title = "Auto Buy Twilight",
-    Callback = function()
-        local remote = game.ReplicatedStorage:FindFirstChild("BuyTwilight")
-        if remote then
-            remote:FireServer()
-        end
-    end
-})
-
-utilityTab:Button({
-    Title = "Auto Buy Bloodmoon",
-    Callback = function()
-        local remote = game.ReplicatedStorage:FindFirstChild("BuyBloodmoon")
-        if remote then
-            remote:FireServer()
-        end
-    end
-})
-
-utilityTab:Button({
-    Title = "Auto Claim Moonlit",
-    Callback = function()
-        local remote = game.ReplicatedStorage:FindFirstChild("ClaimMoonlit")
-        if remote then
-            remote:FireServer()
-        end
+                task.wait(3)
+            end
+        end)
     end
 })
 
@@ -127,9 +112,7 @@ utilityTab:Button({
     Title = "Go to Owl",
     Callback = function()
         local owl = workspace:FindFirstChild("Owl")
-        if owl then
-            game.Players.LocalPlayer.Character:MoveTo(owl.Position)
-        end
+        if owl then LocalPlayer.Character:MoveTo(owl.Position) end
     end
 })
 
@@ -137,36 +120,18 @@ utilityTab:Button({
     Title = "Hop if Not Bloodmoon",
     Callback = function()
         if game.Lighting.TimeOfDay ~= "00:00:00" then
-            game:GetService("TeleportService"):Teleport(game.PlaceId)
-        end
-    end
-})
-
-petTab:Toggle({
-    Title = "Auto Feed Pets",
-    Value = false,
-    Callback = function(v)
-        if v then
-            task.spawn(function()
-                while v do
-                    local remote = game.ReplicatedStorage:FindFirstChild("FeedPets")
-                    if remote then
-                        remote:FireServer()
-                    end
-                    task.wait(4)
-                end
-            end)
+            TeleportService:Teleport(game.PlaceId)
         end
     end
 })
 
 espTab:Dropdown({
-    Title = "ESP Mutation",
+    Title = "ESP Mutation Filter",
     Values = {"Choc", "Chilled", "Frozen", "Wet", "Plasma", "Disco", "Shocked", "Gold", "Rainbow"},
-    Value = "Wet",
-    Callback = function(val)
-        selectedMutation = val
-    end
+    Value = {"Wet"},
+    Multi = true,
+    AllowNone = false,
+    Callback = function(vals) espMutationFilter = vals end
 })
 
 espTab:Toggle({
@@ -181,7 +146,7 @@ espTab:Toggle({
                         local existingESP = plot:FindFirstChild("ESP")
                         if existingESP then existingESP:Destroy() end
                         local plant = plot:FindFirstChild("Plant")
-                        if plant and plant:FindFirstChild("Mutation") and plant.Mutation.Value == selectedMutation then
+                        if plant and plant:FindFirstChild("Mutation") and table.find(espMutationFilter, plant.Mutation.Value) then
                             local esp = Instance.new("BillboardGui", plot)
                             esp.Name = "ESP"
                             esp.Size = UDim2.new(0, 100, 0, 30)
@@ -224,32 +189,152 @@ fpsTab:Button({
 shopTab:Dropdown({
     Title = "Auto Buy Gear",
     Values = {
-        "master sprinkler",
-        "godly sprinkler",
-        "advance sprinkler",
-        "basic sprinkler",
-        "favourite tools",
-        "lighting rod",
-        "harvest tool"
+        "master sprinkler", "godly sprinkler", "advance sprinkler",
+        "basic sprinkler", "favourite tools", "lighting rod", "harvest tool"
     },
-    Value = "master sprinkler",
-    Callback = function(choice)
-        selectedGear = choice
+    Value = {"master sprinkler"},
+    Multi = true,
+    AllowNone = false,
+    Callback = function(list) selectedGears = list end
+})
+
+shopTab:Toggle({
+    Title = "Auto Buy Selected Gear",
+    Value = false,
+    Callback = function(v)
+        autoBuyGear = v
+        task.spawn(function()
+            while autoBuyGear do
+                local remote = ReplicatedStorage:FindFirstChild("BuyGear")
+                if remote then
+                    for _, gear in ipairs(selectedGears) do
+                        remote:FireServer(gear)
+                        task.wait(0.2)
+                    end
+                end
+                task.wait(3)
+            end
+        end)
     end
 })
 
-shopTab:Button({
-    Title = "Buy Selected Gear",
+shopTab:Dropdown({
+    Title = "Auto Buy Eggs",
+    Values = {"Common Egg", "Uncommon Egg", "Rare Egg", "Legendary Egg", "Mythical Egg", "Bug egg", "Exotic Egg"},
+    Value = {"Common Egg"},
+    Multi = true,
+    AllowNone = false,
+    Callback = function(val) selectedEggs = val end
+})
+
+shopTab:Toggle({
+    Title = "Auto Buy Selected Eggs",
+    Value = false,
+    Callback = function(v)
+        task.spawn(function()
+            while v do
+                local remote = ReplicatedStorage:FindFirstChild("BuyEgg")
+                if remote then
+                    for _, egg in ipairs(selectedEggs) do
+                        remote:FireServer(egg)
+                        task.wait(0.2)
+                    end
+                end
+                task.wait(3)
+            end
+        end)
+    end
+})
+
+shopTab:Dropdown({
+    Title = "Auto Buy Twilight Shop",
+    Values = {
+        "Star Caller", "Celestiberry", "Night Seed Pack",
+        "Night Egg", "Moon Cat", "Twilight Crate", "Moon Mango"
+    },
+    Value = {"Star Caller"},
+    Multi = true,
+    AllowNone = false,
+    Callback = function(val) selectedTwilight = val end
+})
+
+shopTab:Toggle({
+    Title = "Buy Twilight Shop Items",
+    Value = false,
+    Callback = function(v)
+        task.spawn(function()
+            while v do
+                local remote = ReplicatedStorage:FindFirstChild("BuyTwilightItem")
+                if remote then
+                    for _, item in ipairs(selectedTwilight) do
+                        remote:FireServer(item)
+                        task.wait(0.2)
+                    end
+                end
+                task.wait(3)
+            end
+        end)
+    end
+})
+
+shopTab:Dropdown({
+    Title = "Auto Buy Bloodlit Shop",
+    Values = {
+        "Mysterious Crate", "Night Egg", "Night seed pack",
+        "blood banana", "moon melon", "star caller",
+        "blood kiwi", "blood hedgehog", "blood owl"
+    },
+    Value = {"Mysterious Crate"},
+    Multi = true,
+    AllowNone = false,
+    Callback = function(val) selectedBloodlit = val end
+})
+
+shopTab:Toggle({
+    Title = "Buy Bloodlit Shop Items",
+    Value = false,
+    Callback = function(v)
+        task.spawn(function()
+            while v do
+                local remote = ReplicatedStorage:FindFirstChild("BuyBloodlitItem")
+                if remote then
+                    for _, item in ipairs(selectedBloodlit) do
+                        remote:FireServer(item)
+                        task.wait(0.2)
+                    end
+                end
+                task.wait(3)
+            end
+        end)
+    end
+})
+
+settingsTab:Button({
+    Title = "Server Hop",
     Callback = function()
-        local gearRemote = game:GetService("ReplicatedStorage"):FindFirstChild("BuyGear")
-        if gearRemote then
-            gearRemote:FireServer(selectedGear)
+        TeleportService:Teleport(game.PlaceId)
+    end
+})
+
+settingsTab:Textbox({
+    Title = "Job Id Server",
+    Placeholder = "Enter Job Id here...",
+    Callback = function(text)
+        jobId = text
+    end
+})
+
+settingsTab:Button({
+    Title = "Join Job ID",
+    Callback = function()
+        if jobId ~= "" then
+            TeleportService:TeleportToPlaceInstance(game.PlaceId, jobId)
         end
     end
 })
 
 local VirtualUser = game:service("VirtualUser")
-game:GetService("Players").LocalPlayer.Idled:connect(function()
+Players.LocalPlayer.Idled:Connect(function()
     VirtualUser:Button2Down(Vector2.new(0,0), workspace.CurrentCamera.CFrame)
     task.wait(1)
     VirtualUser:Button2Up(Vector2.new(0,0), workspace.CurrentCamera.CFrame)
