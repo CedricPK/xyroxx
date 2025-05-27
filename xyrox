@@ -1,3 +1,4 @@
+
 local Players           = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TeleportService   = game:GetService("TeleportService")
@@ -6,14 +7,14 @@ local LocalPlayer       = Players.LocalPlayer
 local WindUI = loadstring(game:HttpGet("https://github.com/Footagesus/WindUI/releases/latest/download/main.lua"))()
 
 local Window = WindUI:CreateWindow({
-    Title       = "Xryox - Grow a Garden",
-    Icon        = "dollar-sign",
-    Author      = "by xyroxcursedasian",
-    Folder      = "XryoxGaG",
-    Size        = UDim2.fromOffset(420, 360),
-    Transparent = true,
-    Theme       = "Dark",
-    User        = {Enabled = true, Anonymous = false},
+    Title        = "Xryox - Grow a Garden",
+    Icon         = "dollar-sign",
+    Author       = "by xyroxcursedasian",
+    Folder       = "XryoxGaG",
+    Size         = UDim2.fromOffset(420, 360),
+    Transparent  = true,
+    Theme        = "Dark",
+    User         = {Enabled = true, Anonymous = false},
     SideBarWidth = 180,
     HasOutline   = true,
 })
@@ -27,26 +28,27 @@ local fpsTab      = UI:Tab({Title = "FPS",      Icon = "gauge"})
 local shopTab     = UI:Tab({Title = "Shop",     Icon = "shopping-cart"})
 local settingsTab = UI:Tab({Title = "Settings", Icon = "server"})
 
-local autoClaim       = false
-local autoPlant       = false
-local autoSell        = false
-local autoBuyGear     = false
-local espEnabled      = false
-local jobId           = ""
-local selectedMutations   = {"All"}
-local espMutationFilter   = {"Wet"}
-local selectedGears       = {"master sprinkler"}
-local selectedEggs        = {"Common Egg"}
-local selectedTwilight    = {"Star Caller"}
-local selectedBloodlit    = {"Mysterious Crate"}
+local autoClaim         = false
+local autoPlant         = false
+local autoSell          = false
+local autoBuyGear       = false
+local espEnabled        = false
+local jobId             = ""
+local selectedMutations = {"All"}
+local espMutationFilter = {"Wet"}
+local selectedGears     = {"master sprinkler"}
+local selectedEggs      = {"Common Egg"}
+local selectedTwilight  = {"Star Caller"}
+local selectedBloodlit  = {"Mysterious Crate"}
 
+-- FARM TAB
 farmTab:Dropdown({
-    Title     = "Claim Filter: Mutations",
-    Values    = {"All", "Choc", "Chilled", "Frozen", "Wet", "Plasma", "Disco", "Shocked", "Gold", "Rainbow"},
-    Value     = {"All"},
-    Multi     = true,
+    Title = "Claim Filter: Mutations",
+    Values = {"All", "Choc", "Chilled", "Frozen", "Wet", "Plasma", "Disco", "Shocked", "Gold", "Rainbow"},
+    Value = {"All"},
+    Multi = true,
     AllowNone = false,
-    Callback  = function(vals) selectedMutations = vals end
+    Callback = function(vals) selectedMutations = vals end
 })
 
 farmTab:Toggle({
@@ -57,13 +59,12 @@ farmTab:Toggle({
         task.spawn(function()
             while autoClaim do
                 for _, plot in pairs(workspace:WaitForChild("Plots"):GetChildren()) do
-                    if plot:FindFirstChild("Owner") and plot.Owner.Value == LocalPlayer.Name then
-                        local harvest = plot:FindFirstChild("Harvest")
-                        if harvest and harvest:FindFirstChild("TouchInterest") then
-                            local mut = plot:FindFirstChild("Mutation")
-                            if table.find(selectedMutations, "All") or (mut and table.find(selectedMutations, mut.Value)) then
-                                ReplicatedStorage.GameEvents.HarvestRemote:FireServer(plot)
-                            end
+                    local owner = plot:FindFirstChild("Owner")
+                    local mut = plot:FindFirstChild("Mutation")
+                    local harvest = plot:FindFirstChild("Harvest")
+                    if owner and tostring(owner.Value) == LocalPlayer.Name and harvest and harvest:FindFirstChild("TouchInterest") then
+                        if table.find(selectedMutations, "All") or (mut and table.find(selectedMutations, mut.Value)) then
+                            ReplicatedStorage.GameEvents.HarvestRemote:FireServer(plot)
                         end
                     end
                 end
@@ -84,7 +85,7 @@ farmTab:Toggle({
                 local seedName = tool and tool:FindFirstChild("SeedType") and tool.SeedType.Value
                 if seedName then
                     for _, plot in pairs(workspace:WaitForChild("Plots"):GetChildren()) do
-                        if plot:FindFirstChild("Owner") and plot.Owner.Value == LocalPlayer.Name and not plot:FindFirstChild("Plant") then
+                        if plot:FindFirstChild("Owner") and tostring(plot.Owner.Value) == LocalPlayer.Name and not plot:FindFirstChild("Plant") then
                             local remote = ReplicatedStorage:FindFirstChild("PlantSeed")
                             if remote then remote:FireServer(seedName) end
                         end
@@ -114,16 +115,14 @@ farmTab:Toggle({
     end
 })
 
+-- UTILITY TAB
 utilityTab:Button({
     Title = "Go to Owl NPC",
     Callback = function()
         for _, npc in pairs(workspace:GetDescendants()) do
-            if npc:IsA("Model") and npc.Name:lower():find("owl") then
-                local hrp = npc:FindFirstChild("HumanoidRootPart")
-                if hrp then
-                    LocalPlayer.Character:MoveTo(hrp.Position)
-                    break
-                end
+            if npc:IsA("Model") and npc:FindFirstChild("HumanoidRootPart") and npc.Name:lower():find("owl") then
+                LocalPlayer.Character:MoveTo(npc.HumanoidRootPart.Position)
+                break
             end
         end
     end
@@ -152,5 +151,81 @@ utilityTab:Toggle({
                 task.wait(5)
             end
         end)
+    end
+})
+
+-- ESP TAB
+espTab:Dropdown({
+    Title = "ESP Mutation Filter",
+    Values = {"Choc", "Chilled", "Frozen", "Wet", "Plasma", "Disco", "Shocked", "Gold", "Rainbow"},
+    Value = {"Wet"},
+    Multi = true,
+    AllowNone = false,
+    Callback = function(vals) espMutationFilter = vals end
+})
+
+espTab:Toggle({
+    Title = "Enable ESP",
+    Value = false,
+    Callback = function(state)
+        espEnabled = state
+        if state then
+            task.spawn(function()
+                while espEnabled do
+                    for _, plot in pairs(workspace:WaitForChild("Plots"):GetChildren()) do
+                        local plant = plot:FindFirstChild("Plant")
+                        local mutation = plant and plant:FindFirstChild("Mutation")
+                        if mutation and table.find(espMutationFilter, mutation.Value) then
+                            if not plot:FindFirstChild("ESP") then
+                                local esp = Instance.new("BillboardGui", plot)
+                                esp.Name = "ESP"
+                                esp.Size = UDim2.new(0, 100, 0, 30)
+                                esp.AlwaysOnTop = true
+                                esp.StudsOffset = Vector3.new(0, 3, 0)
+                                local label = Instance.new("TextLabel", esp)
+                                label.Size = UDim2.new(1, 0, 1, 0)
+                                label.Text = mutation.Value
+                                label.TextColor3 = Color3.fromRGB(255, 255, 0)
+                                label.BackgroundTransparency = 1
+                            end
+                        else
+                            local existing = plot:FindFirstChild("ESP")
+                            if existing then existing:Destroy() end
+                        end
+                    end
+                    task.wait(2)
+                end
+            end)
+        else
+            for _, plot in pairs(workspace:WaitForChild("Plots"):GetChildren()) do
+                local existing = plot:FindFirstChild("ESP")
+                if existing then existing:Destroy() end
+            end
+        end
+    end
+})
+
+-- SETTINGS TAB
+settingsTab:Button({
+    Title = "Server Hop",
+    Callback = function()
+        TeleportService:Teleport(game.PlaceId)
+    end
+})
+
+settingsTab:Textbox({
+    Title = "Job Id Server",
+    Placeholder = "Enter Job Id here...",
+    Callback = function(text)
+        jobId = text
+    end
+})
+
+settingsTab:Button({
+    Title = "Join Job ID",
+    Callback = function()
+        if jobId ~= "" then
+            TeleportService:TeleportToPlaceInstance(game.PlaceId, jobId)
+        end
     end
 })
