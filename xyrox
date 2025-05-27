@@ -1,66 +1,69 @@
-local Players = game:GetService("Players")
+local Players           = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local TeleportService = game:GetService("TeleportService")
-local LocalPlayer = Players.LocalPlayer
+local TeleportService   = game:GetService("TeleportService")
+local LocalPlayer       = Players.LocalPlayer
 
 local WindUI = loadstring(game:HttpGet("https://github.com/Footagesus/WindUI/releases/latest/download/main.lua"))()
 
 local Window = WindUI:CreateWindow({
-    Title = "Xryox - Grow a Garden",
-    Icon = "dollar-sign",
-    Author = "by xyroxcursedasian",
-    Folder = "XryoxGaG",
-    Size = UDim2.fromOffset(420, 360),
+    Title       = "Xryox - Grow a Garden",
+    Icon        = "dollar-sign",
+    Author      = "by xyroxcursedasian",
+    Folder      = "XryoxGaG",
+    Size        = UDim2.fromOffset(420, 360),
     Transparent = true,
-    Theme = "Dark",
-    User = {Enabled = true, Anonymous = false},
+    Theme       = "Dark",
+    User        = {Enabled = true, Anonymous = false},
     SideBarWidth = 180,
-    HasOutline = true,
+    HasOutline   = true,
 })
 
 local UI = Window
 
-local farmTab = UI:Tab({Title = "Farm", Icon = "sprout"})
-local utilityTab = UI:Tab({Title = "Utility", Icon = "settings"})
-local espTab = UI:Tab({Title = "ESP", Icon = "eye"})
-local fpsTab = UI:Tab({Title = "FPS", Icon = "gauge"})
-local shopTab = UI:Tab({Title = "Shop", Icon = "shopping-cart"})
+local farmTab     = UI:Tab({Title = "Farm",     Icon = "sprout"})
+local utilityTab  = UI:Tab({Title = "Utility",  Icon = "settings"})
+local espTab      = UI:Tab({Title = "ESP",      Icon = "eye"})
+local fpsTab      = UI:Tab({Title = "FPS",      Icon = "gauge"})
+local shopTab     = UI:Tab({Title = "Shop",     Icon = "shopping-cart"})
 local settingsTab = UI:Tab({Title = "Settings", Icon = "server"})
 
-local autoClaim = false
-local autoPlant = false
-local autoSell = false
-local autoBuyGear = false
-local espEnabled = false
-local selectedMutations = {"All"}
-local espMutationFilter = {"Wet"}
-local selectedGears = {"master sprinkler"}
-local selectedEggs = {"Common Egg"}
-local selectedTwilight = {"Star Caller"}
-local selectedBloodlit = {"Mysterious Crate"}
-local jobId = ""
+local autoClaim       = false
+local autoPlant       = false
+local autoSell        = false
+local autoBuyGear     = false
+local espEnabled      = false
+local jobId           = ""
+local selectedMutations   = {"All"}
+local espMutationFilter   = {"Wet"}
+local selectedGears       = {"master sprinkler"}
+local selectedEggs        = {"Common Egg"}
+local selectedTwilight    = {"Star Caller"}
+local selectedBloodlit    = {"Mysterious Crate"}
 
 farmTab:Dropdown({
-    Title = "Claim Filter: Mutations",
-    Values = {"All", "Choc", "Chilled", "Frozen", "Wet", "Plasma", "Disco", "Shocked", "Gold", "Rainbow"},
-    Value = {"All"},
-    Multi = true,
+    Title     = "Claim Filter: Mutations",
+    Values    = {"All", "Choc", "Chilled", "Frozen", "Wet", "Plasma", "Disco", "Shocked", "Gold", "Rainbow"},
+    Value     = {"All"},
+    Multi     = true,
     AllowNone = false,
-    Callback = function(vals) selectedMutations = vals end
+    Callback  = function(vals) selectedMutations = vals end
 })
 
 farmTab:Toggle({
-    Title = "Auto Claim",
+    Title = "Auto Claim (Owned Plots Only)",
     Value = false,
     Callback = function(v)
         autoClaim = v
         task.spawn(function()
             while autoClaim do
-                for _, plant in pairs(workspace:GetDescendants()) do
-                    if plant.Name == "Harvest" and plant.Parent:FindFirstChild("TouchInterest") then
-                        local mut = plant.Parent:FindFirstChild("Mutation")
-                        if table.find(selectedMutations, "All") or (mut and table.find(selectedMutations, mut.Value)) then
-                            ReplicatedStorage.GameEvents.HarvestRemote:FireServer(plant.Parent)
+                for _, plot in pairs(workspace:WaitForChild("Plots"):GetChildren()) do
+                    if plot:FindFirstChild("Owner") and plot.Owner.Value == LocalPlayer.Name then
+                        local harvest = plot:FindFirstChild("Harvest")
+                        if harvest and harvest:FindFirstChild("TouchInterest") then
+                            local mut = plot:FindFirstChild("Mutation")
+                            if table.find(selectedMutations, "All") or (mut and table.find(selectedMutations, mut.Value)) then
+                                ReplicatedStorage.GameEvents.HarvestRemote:FireServer(plot)
+                            end
                         end
                     end
                 end
@@ -71,18 +74,21 @@ farmTab:Toggle({
 })
 
 farmTab:Toggle({
-    Title = "Auto Plant (With Seed Held)",
+    Title = "Auto Plant (Owned Empty Plots)",
     Value = false,
     Callback = function(v)
         autoPlant = v
         task.spawn(function()
             while autoPlant do
-                local char = LocalPlayer.Character
-                local tool = char and char:FindFirstChildOfClass("Tool")
-                if tool and tool:FindFirstChild("SeedType") then
-                    local seedName = tool.SeedType.Value
-                    local remote = ReplicatedStorage:FindFirstChild("PlantSeed")
-                    if remote then remote:FireServer(seedName) end
+                local tool = LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Tool")
+                local seedName = tool and tool:FindFirstChild("SeedType") and tool.SeedType.Value
+                if seedName then
+                    for _, plot in pairs(workspace:WaitForChild("Plots"):GetChildren()) do
+                        if plot:FindFirstChild("Owner") and plot.Owner.Value == LocalPlayer.Name and not plot:FindFirstChild("Plant") then
+                            local remote = ReplicatedStorage:FindFirstChild("PlantSeed")
+                            if remote then remote:FireServer(seedName) end
+                        end
+                    end
                 end
                 task.wait(1.5)
             end
@@ -109,10 +115,17 @@ farmTab:Toggle({
 })
 
 utilityTab:Button({
-    Title = "Go to Owl",
+    Title = "Go to Owl NPC",
     Callback = function()
-        local owl = workspace:FindFirstChild("Owl")
-        if owl then LocalPlayer.Character:MoveTo(owl.Position) end
+        for _, npc in pairs(workspace:GetDescendants()) do
+            if npc:IsA("Model") and npc.Name:lower():find("owl") then
+                local hrp = npc:FindFirstChild("HumanoidRootPart")
+                if hrp then
+                    LocalPlayer.Character:MoveTo(hrp.Position)
+                    break
+                end
+            end
+        end
     end
 })
 
@@ -125,219 +138,19 @@ utilityTab:Button({
     end
 })
 
-espTab:Dropdown({
-    Title = "ESP Mutation Filter",
-    Values = {"Choc", "Chilled", "Frozen", "Wet", "Plasma", "Disco", "Shocked", "Gold", "Rainbow"},
-    Value = {"Wet"},
-    Multi = true,
-    AllowNone = false,
-    Callback = function(vals) espMutationFilter = vals end
-})
-
-espTab:Toggle({
-    Title = "Enable ESP",
+utilityTab:Toggle({
+    Title = "Auto Give Moonlit / Bloodlit to Owl",
     Value = false,
     Callback = function(state)
-        espEnabled = state
-        if state then
-            task.spawn(function()
-                while espEnabled do
-                    for _, plot in pairs(workspace:WaitForChild("Plots"):GetChildren()) do
-                        local existingESP = plot:FindFirstChild("ESP")
-                        if existingESP then existingESP:Destroy() end
-                        local plant = plot:FindFirstChild("Plant")
-                        if plant and plant:FindFirstChild("Mutation") and table.find(espMutationFilter, plant.Mutation.Value) then
-                            local esp = Instance.new("BillboardGui", plot)
-                            esp.Name = "ESP"
-                            esp.Size = UDim2.new(0, 100, 0, 30)
-                            esp.AlwaysOnTop = true
-                            esp.StudsOffset = Vector3.new(0, 3, 0)
-                            local label = Instance.new("TextLabel", esp)
-                            label.Size = UDim2.new(1, 0, 1, 0)
-                            label.Text = plant.Mutation.Value
-                            label.TextColor3 = Color3.fromRGB(255, 255, 0)
-                            label.BackgroundTransparency = 1
-                        end
-                    end
-                    task.wait(2)
-                end
-            end)
-        else
-            for _, plot in pairs(workspace:WaitForChild("Plots"):GetChildren()) do
-                local existingESP = plot:FindFirstChild("ESP")
-                if existingESP then existingESP:Destroy() end
-            end
-        end
-    end
-})
-
-fpsTab:Button({
-    Title = "Boost FPS",
-    Callback = function()
-        for _, v in pairs(game:GetDescendants()) do
-            if v:IsA("Texture") or v:IsA("Decal") or v:IsA("ParticleEmitter") or v:IsA("Trail") then
-                v:Destroy()
-            elseif v:IsA("BasePart") then
-                v.Material = Enum.Material.SmoothPlastic
-            end
-        end
-        game.Lighting.FogEnd = 100000
-        game.Lighting.GlobalShadows = false
-    end
-})
-
-shopTab:Dropdown({
-    Title = "Auto Buy Gear",
-    Values = {
-        "master sprinkler", "godly sprinkler", "advance sprinkler",
-        "basic sprinkler", "favourite tools", "lighting rod", "harvest tool"
-    },
-    Value = {"master sprinkler"},
-    Multi = true,
-    AllowNone = false,
-    Callback = function(list) selectedGears = list end
-})
-
-shopTab:Toggle({
-    Title = "Auto Buy Selected Gear",
-    Value = false,
-    Callback = function(v)
-        autoBuyGear = v
         task.spawn(function()
-            while autoBuyGear do
-                local remote = ReplicatedStorage:FindFirstChild("BuyGear")
+            while state do
+                local remote = ReplicatedStorage:FindFirstChild("GiveToOwl")
                 if remote then
-                    for _, gear in ipairs(selectedGears) do
-                        remote:FireServer(gear)
-                        task.wait(0.2)
-                    end
+                    remote:FireServer("Moonlit")
+                    remote:FireServer("Bloodlit")
                 end
-                task.wait(3)
+                task.wait(5)
             end
         end)
     end
 })
-
-shopTab:Dropdown({
-    Title = "Auto Buy Eggs",
-    Values = {"Common Egg", "Uncommon Egg", "Rare Egg", "Legendary Egg", "Mythical Egg", "Bug egg", "Exotic Egg"},
-    Value = {"Common Egg"},
-    Multi = true,
-    AllowNone = false,
-    Callback = function(val) selectedEggs = val end
-})
-
-shopTab:Toggle({
-    Title = "Auto Buy Selected Eggs",
-    Value = false,
-    Callback = function(v)
-        task.spawn(function()
-            while v do
-                local remote = ReplicatedStorage:FindFirstChild("BuyEgg")
-                if remote then
-                    for _, egg in ipairs(selectedEggs) do
-                        remote:FireServer(egg)
-                        task.wait(0.2)
-                    end
-                end
-                task.wait(3)
-            end
-        end)
-    end
-})
-
-shopTab:Dropdown({
-    Title = "Auto Buy Twilight Shop",
-    Values = {
-        "Star Caller", "Celestiberry", "Night Seed Pack",
-        "Night Egg", "Moon Cat", "Twilight Crate", "Moon Mango"
-    },
-    Value = {"Star Caller"},
-    Multi = true,
-    AllowNone = false,
-    Callback = function(val) selectedTwilight = val end
-})
-
-shopTab:Toggle({
-    Title = "Buy Twilight Shop Items",
-    Value = false,
-    Callback = function(v)
-        task.spawn(function()
-            while v do
-                local remote = ReplicatedStorage:FindFirstChild("BuyTwilightItem")
-                if remote then
-                    for _, item in ipairs(selectedTwilight) do
-                        remote:FireServer(item)
-                        task.wait(0.2)
-                    end
-                end
-                task.wait(3)
-            end
-        end)
-    end
-})
-
-shopTab:Dropdown({
-    Title = "Auto Buy Bloodlit Shop",
-    Values = {
-        "Mysterious Crate", "Night Egg", "Night seed pack",
-        "blood banana", "moon melon", "star caller",
-        "blood kiwi", "blood hedgehog", "blood owl"
-    },
-    Value = {"Mysterious Crate"},
-    Multi = true,
-    AllowNone = false,
-    Callback = function(val) selectedBloodlit = val end
-})
-
-shopTab:Toggle({
-    Title = "Buy Bloodlit Shop Items",
-    Value = false,
-    Callback = function(v)
-        task.spawn(function()
-            while v do
-                local remote = ReplicatedStorage:FindFirstChild("BuyBloodlitItem")
-                if remote then
-                    for _, item in ipairs(selectedBloodlit) do
-                        remote:FireServer(item)
-                        task.wait(0.2)
-                    end
-                end
-                task.wait(3)
-            end
-        end)
-    end
-})
-
-settingsTab:Button({
-    Title = "Server Hop",
-    Callback = function()
-        TeleportService:Teleport(game.PlaceId)
-    end
-})
-
-settingsTab:Textbox({
-    Title = "Job Id Server",
-    Placeholder = "Enter Job Id here...",
-    Callback = function(text)
-        jobId = text
-    end
-})
-
-settingsTab:Button({
-    Title = "Join Job ID",
-    Callback = function()
-        if jobId ~= "" then
-            TeleportService:TeleportToPlaceInstance(game.PlaceId, jobId)
-        end
-    end
-})
-
-local VirtualUser = game:service("VirtualUser")
-Players.LocalPlayer.Idled:Connect(function()
-    VirtualUser:Button2Down(Vector2.new(0,0), workspace.CurrentCamera.CFrame)
-    task.wait(1)
-    VirtualUser:Button2Up(Vector2.new(0,0), workspace.CurrentCamera.CFrame)
-end)
-
-print("[xyroxcursedasian] WindUI (Footagesus) Loaded Successfully")
