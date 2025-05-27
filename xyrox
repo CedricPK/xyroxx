@@ -5,14 +5,14 @@ local Window = WindUI:CreateWindow({
     Icon = "dollar-sign",
     Author = "by xyroxcursedasian",
     Folder = "XryoxGaG",
-    Size = UDim2.fromOffset(580, 460),
+    Size = UDim2.fromOffset(420, 360),
     Transparent = true,
     Theme = "Dark",
     User = {
         Enabled = true,
         Anonymous = false
     },
-    SideBarWidth = 200,
+    SideBarWidth = 180,
     HasOutline = true,
 })
 
@@ -23,10 +23,14 @@ local utilityTab = UI:Tab({Title = "Utility", Icon = "settings"})
 local petTab = UI:Tab({Title = "Pet", Icon = "paw-print"})
 local espTab = UI:Tab({Title = "ESP", Icon = "eye"})
 local fpsTab = UI:Tab({Title = "FPS", Icon = "gauge"})
+local shopTab = UI:Tab({Title = "Shop", Icon = "shopping-cart"})
 
 local autoClaim = false
 local autoPlant = false
 local autoSell = false
+local selectedGear = "master sprinkler"
+local selectedMutation = "Wet"
+local espEnabled = false
 
 farmTab:Toggle({
     Title = "Auto Claim",
@@ -156,33 +160,48 @@ petTab:Toggle({
     end
 })
 
+espTab:Dropdown({
+    Title = "ESP Mutation",
+    Values = {"Choc", "Chilled", "Frozen", "Wet", "Plasma", "Disco", "Shocked", "Gold", "Rainbow"},
+    Value = "Wet",
+    Callback = function(val)
+        selectedMutation = val
+    end
+})
+
 espTab:Toggle({
     Title = "Enable ESP",
     Value = false,
-    Callback = function(enabled)
-        if enabled then
+    Callback = function(state)
+        espEnabled = state
+        if state then
             task.spawn(function()
-                while enabled do
-                    for _, obj in pairs(workspace:GetDescendants()) do
-                        if obj:IsA("Part") and obj.Name == "Fruit" and not obj:FindFirstChild("ESP") then
-                            local mutation = obj:FindFirstChild("Mutation")
-                            if mutation then
-                                local esp = Instance.new("BillboardGui", obj)
-                                esp.Name = "ESP"
-                                esp.Size = UDim2.new(0, 100, 0, 30)
-                                esp.AlwaysOnTop = true
-                                esp.StudsOffset = Vector3.new(0, 2, 0)
-                                local label = Instance.new("TextLabel", esp)
-                                label.Size = UDim2.new(1, 0, 1, 0)
-                                label.Text = mutation.Value
-                                label.TextColor3 = Color3.fromRGB(255, 255, 0)
-                                label.BackgroundTransparency = 1
-                            end
+                while espEnabled do
+                    for _, plot in pairs(workspace:WaitForChild("Plots"):GetChildren()) do
+                        local existingESP = plot:FindFirstChild("ESP")
+                        if existingESP then existingESP:Destroy() end
+                        local plant = plot:FindFirstChild("Plant")
+                        if plant and plant:FindFirstChild("Mutation") and plant.Mutation.Value == selectedMutation then
+                            local esp = Instance.new("BillboardGui", plot)
+                            esp.Name = "ESP"
+                            esp.Size = UDim2.new(0, 100, 0, 30)
+                            esp.AlwaysOnTop = true
+                            esp.StudsOffset = Vector3.new(0, 3, 0)
+                            local label = Instance.new("TextLabel", esp)
+                            label.Size = UDim2.new(1, 0, 1, 0)
+                            label.Text = plant.Mutation.Value
+                            label.TextColor3 = Color3.fromRGB(255, 255, 0)
+                            label.BackgroundTransparency = 1
                         end
                     end
-                    task.wait(3)
+                    task.wait(2)
                 end
             end)
+        else
+            for _, plot in pairs(workspace:WaitForChild("Plots"):GetChildren()) do
+                local existingESP = plot:FindFirstChild("ESP")
+                if existingESP then existingESP:Destroy() end
+            end
         end
     end
 })
@@ -199,6 +218,33 @@ fpsTab:Button({
         end
         game.Lighting.FogEnd = 100000
         game.Lighting.GlobalShadows = false
+    end
+})
+
+shopTab:Dropdown({
+    Title = "Auto Buy Gear",
+    Values = {
+        "master sprinkler",
+        "godly sprinkler",
+        "advance sprinkler",
+        "basic sprinkler",
+        "favourite tools",
+        "lighting rod",
+        "harvest tool"
+    },
+    Value = "master sprinkler",
+    Callback = function(choice)
+        selectedGear = choice
+    end
+})
+
+shopTab:Button({
+    Title = "Buy Selected Gear",
+    Callback = function()
+        local gearRemote = game:GetService("ReplicatedStorage"):FindFirstChild("BuyGear")
+        if gearRemote then
+            gearRemote:FireServer(selectedGear)
+        end
     end
 })
 
